@@ -23,8 +23,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
-              containerPort: 8090
+            - name: grpc
+              containerPort: 50051
           env:
             - name: SERVICE_NAME
               value: {{ .Values.env.SERVICE_NAME | quote }}
@@ -32,28 +32,44 @@ spec:
               value: {{ .Values.env.SERVICE_VERSION | quote }}
             - name: CHARON_AGENT_ID
               value: {{ .Values.env.CHARON_AGENT_ID | quote }}
-            - name: JUDY_BASE_URL
-              value: {{ .Values.env.JUDY_BASE_URL | quote }}
+            - name: JUDY_GRPC_TARGET
+              value: {{ .Values.env.JUDY_GRPC_TARGET | quote }}
             - name: JUDY_TIMEOUT_SECONDS
               value: {{ .Values.env.JUDY_TIMEOUT_SECONDS | quote }}
             - name: CHARON_SIGNATURE_HEADER
               value: {{ .Values.env.CHARON_SIGNATURE_HEADER | quote }}
+            - name: JUDY_GRPC_TLS_ENABLED
+              value: {{ .Values.tls.enabled | quote }}
+            - name: JUDY_GRPC_CA_PATH
+              value: {{ printf "%s/%s" .Values.tls.mountPath .Values.tls.caSecretKey | quote }}
+            - name: GRPC_PORT
+              value: {{ .Values.service.port | quote }}
             - name: CHARON_SIGNATURE_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "charon.fullname" . }}-secrets
                   key: CHARON_SIGNATURE_SECRET
+          {{- if .Values.tls.enabled }}
+          volumeMounts:
+            - name: judy-ca
+              mountPath: {{ .Values.tls.mountPath | quote }}
+              readOnly: true
+          {{- end }}
           readinessProbe:
-            httpGet:
-              path: /health
-              port: http
+            tcpSocket:
+              port: grpc
             initialDelaySeconds: 3
             periodSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /health
-              port: http
+            tcpSocket:
+              port: grpc
             initialDelaySeconds: 10
             periodSeconds: 10
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+      {{- if .Values.tls.enabled }}
+      volumes:
+        - name: judy-ca
+          secret:
+            secretName: {{ .Values.tls.caSecretName | quote }}
+      {{- end }}

@@ -7,7 +7,7 @@ image:
 
 service:
   type: ClusterIP
-  port: 8090
+  port: 50051
 
 resources:
   requests:
@@ -21,9 +21,15 @@ env:
   SERVICE_NAME: charon-agent
   SERVICE_VERSION: 0.1.0
   CHARON_AGENT_ID: charon-v1
-  JUDY_BASE_URL: http://judy-council.governance-zone.svc.cluster.local:8000
+  JUDY_GRPC_TARGET: judy-council.governance-zone.svc.cluster.local:50052
   JUDY_TIMEOUT_SECONDS: "10"
   CHARON_SIGNATURE_HEADER: X-Charon-Signature
+
+tls:
+  enabled: false
+  caSecretName: ""
+  caSecretKey: ca.crt
+  mountPath: /etc/charon/tls
 
 secretEnv:
   CHARON_SIGNATURE_SECRET: charon-dev-secret
@@ -32,4 +38,4 @@ networkPolicy:
   enabled: true
   judyNamespace: governance-zone
   judyPodLabel: judy-council
-  judyPort: 8000
+  judyPort: 50052

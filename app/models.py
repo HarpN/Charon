@@ -30,16 +30,3 @@ class ProposalPayload(BaseModel):
     transaction_metadata: TransactionMetadata
     proposed_action: ProposedAction
     agent_rationale: str
-
-
-class CharonTaskResponse(BaseModel):
-    correlation_id: str
-    mode: str
-    proposal: dict[str, Any]
-    judy_response: dict[str, Any]
-
-
-class HealthResponse(BaseModel):
-    status: str
-    service: str
-    judy_base_url: str

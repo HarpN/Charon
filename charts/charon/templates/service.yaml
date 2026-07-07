@@ -8,6 +8,6 @@ spec:
     app.kubernetes.io/name: {{ include "charon.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
-    - name: http
+    - name: grpc
       port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: grpc

@@ -17,6 +17,6 @@ COPY app ./app
 COPY tests ./tests
 COPY README.md ./README.md
 
-EXPOSE 8090
+EXPOSE 50051
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090"]
+CMD ["python", "-m", "app.main"]
