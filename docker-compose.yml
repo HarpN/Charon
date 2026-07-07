@@ -1,0 +1,14 @@
+services:
+  charon:
+    build: .
+    container_name: charon_agent
+    ports:
+      - "8090:8090"
+    environment:
+      - SERVICE_NAME=charon-agent
+      - SERVICE_VERSION=0.1.0
+      - CHARON_AGENT_ID=charon-v1
+      - JUDY_BASE_URL=http://host.docker.internal:8000
+      - JUDY_TIMEOUT_SECONDS=10
+      - CHARON_SIGNATURE_SECRET=charon-dev-secret
+    restart: unless-stopped

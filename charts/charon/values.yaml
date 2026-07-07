@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: charon-agent
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8090
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+env:
+  SERVICE_NAME: charon-agent
+  SERVICE_VERSION: 0.1.0
+  CHARON_AGENT_ID: charon-v1
+  JUDY_BASE_URL: http://judy-council.governance-zone.svc.cluster.local:8000
+  JUDY_TIMEOUT_SECONDS: "10"
+  CHARON_SIGNATURE_HEADER: X-Charon-Signature
+
+secretEnv:
+  CHARON_SIGNATURE_SECRET: charon-dev-secret
+
+networkPolicy:
+  enabled: true
+  judyNamespace: governance-zone
+  judyPodLabel: judy-council
+  judyPort: 8000

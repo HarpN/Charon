@@ -1,0 +1,24 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "charon.fullname" . }}-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "charon.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.judyNamespace | quote }}
+          podSelector:
+            matchLabels:
+              app: {{ .Values.networkPolicy.judyPodLabel | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.judyPort }}
+{{- end }}
