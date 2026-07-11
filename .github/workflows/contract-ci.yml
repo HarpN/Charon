@@ -1,0 +1,53 @@
+name: Contract CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts-and-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Charon
+        uses: actions/checkout@v4
+
+      - name: Checkout Sly
+        uses: actions/checkout@v4
+        with:
+          repository: HarpN/sly
+          path: external/sly
+
+      - name: Checkout Milo
+        uses: actions/checkout@v4
+        with:
+          repository: HarpN/milo
+          path: external/milo
+
+      - name: Checkout TheKeeper
+        uses: actions/checkout@v4
+        with:
+          repository: HarpN/TheKeeper
+          path: external/TheKeeper
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Run Charon tests
+        run: pytest -q
+
+      - name: Verify cross-repo contracts
+        run: |
+          python scripts/verify_cross_repo_contracts.py \
+            --charon-root . \
+            --sly-root external/sly \
+            --milo-root external/milo \
+            --keeper-root external/TheKeeper
