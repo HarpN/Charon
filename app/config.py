@@ -40,6 +40,7 @@ class Settings:
     llm_light_model: str = os.getenv("LLM_LIGHT_MODEL", "gpt-4o-mini")
     llm_deep_model: str = os.getenv("LLM_DEEP_MODEL", "gpt-4o")
     keeper_db_path: str = os.getenv("KEEPER_DB_PATH", "../TheKeeper/keeper_blended.db")
+    retrieval_link_min_confidence: float = float(os.getenv("RETRIEVAL_LINK_MIN_CONFIDENCE", "0.55"))
     retrieval_top_k: int = int(os.getenv("RETRIEVAL_TOP_K", "3"))
     retrieval_max_chars_per_chunk: int = int(os.getenv("RETRIEVAL_MAX_CHARS_PER_CHUNK", "900"))
 
