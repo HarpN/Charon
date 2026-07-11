@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from .config import settings
-from .models import CharonTaskRequest, ProposalPayload, ProposedAction, TransactionMetadata
+from .keeper_retrieval import KeeperRetriever
+from .llm_routing import route_intent
+from .models import CharonTaskRequest, ProposalPayload, ProposalRationaleEnvelope, ProposedAction, TransactionMetadata
+
+retriever = KeeperRetriever()
 
 
 def _derive_update(user_intent: str) -> tuple[str, int]:
@@ -20,6 +25,15 @@ def _derive_update(user_intent: str) -> tuple[str, int]:
 
 def build_proposal(request: CharonTaskRequest) -> ProposalPayload:
     status, completion = _derive_update(request.user_intent)
+    routing = route_intent(request.user_intent)
+    snippets = retriever.retrieve(request.user_intent, top_k=settings.retrieval_top_k)
+    rationale_envelope = ProposalRationaleEnvelope(
+        model_tier=routing.model_tier,
+        selected_model=routing.selected_model,
+        intent_summary=request.user_intent[:400],
+        retrieval_snippets=snippets,
+    )
+
     correlation_id = f"tx-{uuid4().hex[:12]}"
     timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -39,5 +53,5 @@ def build_proposal(request: CharonTaskRequest) -> ProposalPayload:
                 "completion_date": timestamp[:10],
             },
         ),
-        agent_rationale=request.user_intent,
+        agent_rationale=json.dumps(rationale_envelope.model_dump(), separators=(",", ":"), sort_keys=True),
     )
