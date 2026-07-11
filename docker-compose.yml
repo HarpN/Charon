@@ -5,11 +5,18 @@ services:
     ports:
       - "50051:50051"
     environment:
+      - ENVIRONMENT=dev
       - SERVICE_NAME=charon-agent
       - SERVICE_VERSION=0.1.0
       - CHARON_AGENT_ID=charon-v1
       - GRPC_PORT=50051
+      - GRPC_MAX_WORKERS=32
       - JUDY_GRPC_TARGET=host.docker.internal:50052
       - JUDY_TIMEOUT_SECONDS=10
-      - CHARON_SIGNATURE_SECRET=charon-dev-secret
+      - INBOUND_SIGNATURE_HEADER=X-Judy-Signature
+      - INBOUND_SIGNATURE_SECRET=charon-inbound-secret
+      - OUTBOUND_SIGNATURE_HEADER=X-Charon-Signature
+      - OUTBOUND_SIGNATURE_SECRET=charon-dev-secret
+      - OUTBOUND_KEY_ID=charon-k1
+      - REPLAY_TTL_SECONDS=300
     restart: unless-stopped

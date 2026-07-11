@@ -62,16 +62,56 @@ docker compose run --rm charon pytest
 
 | Variable | Description | Default |
 | --- | --- | --- |
+| `ENVIRONMENT` | Runtime environment hint used for startup validation (`dev`, `staging`, `prod`) | `dev` |
 | `SERVICE_NAME` | Service identifier | `charon-agent` |
 | `SERVICE_VERSION` | Version string | `0.1.0` |
 | `CHARON_AGENT_ID` | Agent identifier in metadata | `charon-v1` |
 | `GRPC_PORT` | gRPC listen port | `50051` |
+| `GRPC_MAX_WORKERS` | gRPC thread pool worker count | `32` |
+| `GRPC_TLS_ENABLED` | Enable inbound TLS listener | `false` |
+| `GRPC_TLS_SERVER_CERT_PATH` | Server cert path for inbound TLS | empty |
+| `GRPC_TLS_SERVER_KEY_PATH` | Server key path for inbound TLS | empty |
+| `GRPC_TLS_REQUIRE_CLIENT_AUTH` | Require client cert on inbound listener (mTLS) | `false` |
+| `GRPC_TLS_CLIENT_CA_CERT_PATH` | Trusted client CA path for inbound mTLS | empty |
 | `JUDY_GRPC_TARGET` | Judy Council gRPC target | `judy-council:50052` |
 | `JUDY_TIMEOUT_SECONDS` | gRPC timeout to Judy | `10` |
-| `JUDY_GRPC_TLS_ENABLED` | Enable TLS for Judy gRPC channel | `false` |
-| `JUDY_GRPC_CA_PATH` | CA certificate path for Judy TLS | `/etc/charon/tls/ca.crt` |
-| `CHARON_SIGNATURE_SECRET` | Shared secret for proposal signing | `charon-dev-secret` |
-| `CHARON_SIGNATURE_HEADER` | Signature header name | `X-Charon-Signature` |
+| `JUDY_TLS_ENABLED` | Enable TLS for Judy gRPC channel | `false` |
+| `JUDY_TLS_CA_CERT_PATH` | CA certificate path for Judy TLS validation | empty |
+| `JUDY_MTLS_ENABLED` | Enable mTLS for Judy gRPC channel | `false` |
+| `JUDY_TLS_CLIENT_CERT_PATH` | Client cert path for Judy mTLS | empty |
+| `JUDY_TLS_CLIENT_KEY_PATH` | Client key path for Judy mTLS | empty |
+| `INBOUND_SIGNATURE_HEADER` | Signature header name for inbound proposal auth | `X-Judy-Signature` |
+| `INBOUND_SIGNATURE_SECRET` | Shared secret for inbound proposal verification | required |
+| `OUTBOUND_SIGNATURE_HEADER` | Signature header name for outbound Judy requests | `X-Charon-Signature` |
+| `OUTBOUND_SIGNATURE_SECRET` | Shared secret for outbound proposal signing | required |
+| `OUTBOUND_KEY_ID` | Signing key identifier for outbound envelope metadata | `charon-k1` |
+| `REPLAY_TTL_SECONDS` | Replay protection window for inbound signed requests | `300` |
+
+### Compose mTLS Profile
+
+Generate local dev certificates first:
+
+```powershell
+./scripts/generate-dev-certs.ps1 -Force
+```
+
+Run Charon with inbound TLS + client auth and outbound mTLS to Judy:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.mtls.yml up --build
+```
+
+Verify certificate chains and mTLS handshakes:
+
+```powershell
+./scripts/verify-mtls.ps1
+```
+
+If Charon or Judy is not running, verify cert trust only:
+
+```powershell
+./scripts/verify-mtls.ps1 -SkipHandshake
+```
 
 ## Kubernetes / Helm
 

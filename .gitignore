@@ -4,3 +4,8 @@ __pycache__/
 .venv/
 venv/
 .env
+certs/*.crt
+certs/*.key
+certs/*.csr
+certs/*.srl
+certs/*.cnf
