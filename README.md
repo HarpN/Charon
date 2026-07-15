@@ -4,16 +4,20 @@ Charon is the orchestration agent for the Trophy Backlog Command Center. It tran
 
 ## Architecture Role
 
-- **Zone**: Agent Zone (untrusted orchestration layer)
-- **Primary responsibility**: Convert user intent into structured proposal payloads
-- **Governance dependency**: Judy Council gRPC (`judy.JudyCouncil`)
-- **Security model**: Signed payload envelope, TLS-ready Judy channel, and restricted egress to governance service
+- **Zone**: Agent Zone (orchestration layer; no direct write authority)
+- **Primary responsibility**: Convert user intent plus retrieved context into structured proposal payloads
+- **Read dependency**: Keeper blended store (retrieval-first context for rationale generation)
+- **Governance dependency**: Judy Council gRPC (`judy.JudyCouncil`) for judge/commit verdicts
+- **Security model**: Signed outbound proposal envelope, replay-aware metadata, TLS/mTLS-ready Judy channel
+- **Boundary rule**: Charon does not execute persistence mutations directly; approved writes are handled downstream
 
 ```mermaid
 flowchart LR
 		A[User Intent] --> B[Charon]
+		K[TheKeeper Context] -->|Top-K Retrieval| B
 		B -->|Signed Proposal| C[Judy Council]
-		C -->|Verdict| B
+		C -->|Judge or Commit Verdict| B
+		B -.no direct writes.-> D[(Execution Stores)]
 ```
 
 ## Features
