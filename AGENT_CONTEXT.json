@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "name": "Charon",
+    "description": "Orchestration agent that turns user intent into signed proposals for Judy",
+    "default_branch": "main"
+  },
+  "runtime": {
+    "primary_mode": "docker_compose",
+    "grpc_port": 50051
+  },
+  "commands": {
+    "start": {
+      "shell": "powershell",
+      "cwd": ".",
+      "command": "docker compose up --build -d"
+    },
+    "stop": {
+      "shell": "powershell",
+      "cwd": ".",
+      "command": "docker compose down"
+    },
+    "test": {
+      "shell": "powershell",
+      "cwd": ".",
+      "command": "docker compose run --rm charon pytest"
+    }
+  },
+  "entrypoint_files": [
+    "README.md",
+    "app/grpc_server.py",
+    "app/orchestrator.py",
+    "app/judy_client.py",
+    "app/config.py",
+    "proto/judy.proto",
+    "docker-compose.yml"
+  ]
+}
