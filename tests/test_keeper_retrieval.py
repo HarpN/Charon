@@ -22,7 +22,8 @@ def _seed_keeper_rows(db_path: str) -> None:
                 chunk_index INTEGER NOT NULL,
                 heading TEXT NOT NULL,
                 text TEXT NOT NULL,
-                token_count INTEGER NOT NULL
+                token_count INTEGER NOT NULL,
+                trust_status TEXT NOT NULL DEFAULT 'approved'
             )
             """
         )
@@ -67,10 +68,10 @@ def _seed_keeper_rows(db_path: str) -> None:
                 """
                 INSERT INTO keeper_chunks (
                     source_agent, guide_url, game_title, correlation_id, fetched_at,
-                    chunk_index, heading, text, token_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    chunk_index, heading, text, token_count, trust_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                ("milo", guide_url, game_title, correlation_id, "2026-07-11T00:00:00+00:00", 0, "Section 1", text, len(text.split())),
+                ("milo", guide_url, game_title, correlation_id, "2026-07-11T00:00:00+00:00", 0, "Section 1", text, len(text.split()), "approved"),
             )
             connection.execute(
                 """
@@ -140,7 +141,8 @@ def test_retrieval_falls_back_without_link_table(tmp_path, monkeypatch) -> None:
                 chunk_index INTEGER NOT NULL,
                 heading TEXT NOT NULL,
                 text TEXT NOT NULL,
-                token_count INTEGER NOT NULL
+                token_count INTEGER NOT NULL,
+                trust_status TEXT NOT NULL DEFAULT 'approved'
             )
             """
         )
@@ -161,10 +163,10 @@ def test_retrieval_falls_back_without_link_table(tmp_path, monkeypatch) -> None:
             """
             INSERT INTO keeper_chunks (
                 source_agent, guide_url, game_title, correlation_id, fetched_at,
-                chunk_index, heading, text, token_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                chunk_index, heading, text, token_count, trust_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            ("milo", "https://example.org/fallback", "Astro Bot", "cid-fallback", "2026-07-11T00:00:00+00:00", 0, "Section 1", text, 8),
+            ("milo", "https://example.org/fallback", "Astro Bot", "cid-fallback", "2026-07-11T00:00:00+00:00", 0, "Section 1", text, 8, "approved"),
         )
         connection.execute(
             """
@@ -181,3 +183,76 @@ def test_retrieval_falls_back_without_link_table(tmp_path, monkeypatch) -> None:
 
     assert len(snippets) == 1
     assert "Fallback retrieval text" in snippets[0]
+
+
+def test_retrieval_excludes_unapproved_chunks(tmp_path, monkeypatch) -> None:
+    keeper_db = tmp_path / "keeper_retrieval_unapproved.db"
+    with sqlite3.connect(keeper_db) as connection:
+        connection.execute(
+            """
+            CREATE TABLE keeper_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_agent TEXT NOT NULL,
+                guide_url TEXT NOT NULL,
+                game_title TEXT NOT NULL,
+                correlation_id TEXT NOT NULL,
+                fetched_at TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                heading TEXT NOT NULL,
+                text TEXT NOT NULL,
+                token_count INTEGER NOT NULL,
+                trust_status TEXT NOT NULL DEFAULT 'approved'
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE keeper_chunk_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_agent TEXT NOT NULL,
+                correlation_id TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                embedding_json TEXT NOT NULL,
+                UNIQUE(correlation_id, chunk_index)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO keeper_chunks (
+                source_agent, guide_url, game_title, correlation_id, fetched_at,
+                chunk_index, heading, text, token_count, trust_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "milo",
+                "https://example.org/unapproved",
+                "Astro Bot",
+                "cid-unapproved",
+                "2026-07-11T00:00:00+00:00",
+                0,
+                "Section 1",
+                "This chunk should never be returned to Charon retrieval.",
+                9,
+                "rejected",
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO keeper_chunk_embeddings (
+                source_agent, correlation_id, chunk_index, embedding_json
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                "milo",
+                "cid-unapproved",
+                0,
+                json.dumps(embed_text("This chunk should never be returned to Charon retrieval."), separators=(",", ":")),
+            ),
+        )
+
+    monkeypatch.setattr(settings, "retrieval_link_min_confidence", 0.0)
+    retriever = KeeperRetriever(db_path=str(keeper_db))
+    snippets = retriever.retrieve("astro bot cleanup", top_k=3)
+
+    assert snippets == []

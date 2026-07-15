@@ -7,31 +7,24 @@ from uuid import uuid4
 from .config import settings
 from .keeper_retrieval import KeeperRetriever
 from .llm_routing import route_intent
+from .local_llm import LocalIntentAnalyzer
 from .models import CharonTaskRequest, ProposalPayload, ProposalRationaleEnvelope, ProposedAction, TransactionMetadata
 
 retriever = KeeperRetriever()
-
-
-def _derive_update(user_intent: str) -> tuple[str, int]:
-    normalized = user_intent.lower()
-    if "complete" in normalized or "completed" in normalized:
-        return "COMPLETED", 100
-    if "pause" in normalized or "hold" in normalized:
-        return "PENDING_REVIEW", 0
-    if "progress" in normalized or "sync" in normalized:
-        return "PENDING_SYNC", 75
-    return "ACTIVE", 50
+intent_analyzer = LocalIntentAnalyzer()
 
 
 def build_proposal(request: CharonTaskRequest) -> ProposalPayload:
-    status, completion = _derive_update(request.user_intent)
     routing = route_intent(request.user_intent)
     snippets = retriever.retrieve(request.user_intent, top_k=settings.retrieval_top_k)
+    intent_analysis = intent_analyzer.analyze(request.user_intent, snippets)
     rationale_envelope = ProposalRationaleEnvelope(
         model_tier=routing.model_tier,
         selected_model=routing.selected_model,
-        intent_summary=request.user_intent[:400],
+        intent_summary=intent_analysis.intent_summary,
         retrieval_snippets=snippets,
+        nlp_engine=intent_analysis.nlp_engine,
+        nlp_fallback_used=intent_analysis.fallback_used,
     )
 
     correlation_id = f"tx-{uuid4().hex[:12]}"
@@ -48,8 +41,8 @@ def build_proposal(request: CharonTaskRequest) -> ProposalPayload:
             action_type=request.action_type,
             entity_id=request.entity_id,
             payload={
-                "status": status,
-                "completion": completion,
+                "status": intent_analysis.status,
+                "completion": intent_analysis.completion,
                 "completion_date": timestamp[:10],
             },
         ),

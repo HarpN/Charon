@@ -22,6 +22,16 @@ class KeeperRetriever:
         with sqlite3.connect(self.db_path) as connection:
             connection.row_factory = sqlite3.Row
             rows: list[sqlite3.Row] = []
+            trust_column_available = False
+
+            try:
+                chunk_columns = {
+                    str(row["name"])
+                    for row in connection.execute("PRAGMA table_info(keeper_chunks)").fetchall()
+                }
+                trust_column_available = "trust_status" in chunk_columns
+            except sqlite3.OperationalError:
+                trust_column_available = False
             link_tables_available = True
             has_links = False
 
@@ -33,23 +43,43 @@ class KeeperRetriever:
                 link_tables_available = False
 
             if link_tables_available and has_links:
-                rows = connection.execute(
-                    """
-                    SELECT
-                        kc.text AS text,
-                        kce.embedding_json AS embedding_json,
-                        kgl.match_confidence AS match_confidence
-                    FROM keeper_game_guide_links kgl
-                    JOIN keeper_chunks kc
-                        ON kc.guide_url = kgl.guide_url
-                       AND kc.game_title = kgl.game_title
-                    JOIN keeper_chunk_embeddings kce
-                        ON kce.correlation_id = kc.correlation_id
-                       AND kce.chunk_index = kc.chunk_index
-                    WHERE kgl.match_confidence >= ?
-                    """,
-                    (float(settings.retrieval_link_min_confidence),),
-                ).fetchall()
+                if trust_column_available:
+                    rows = connection.execute(
+                        """
+                        SELECT
+                            kc.text AS text,
+                            kce.embedding_json AS embedding_json,
+                            kgl.match_confidence AS match_confidence
+                        FROM keeper_game_guide_links kgl
+                        JOIN keeper_chunks kc
+                            ON kc.guide_url = kgl.guide_url
+                           AND kc.game_title = kgl.game_title
+                        JOIN keeper_chunk_embeddings kce
+                            ON kce.correlation_id = kc.correlation_id
+                           AND kce.chunk_index = kc.chunk_index
+                        WHERE kgl.match_confidence >= ?
+                          AND kc.trust_status = 'approved'
+                        """,
+                        (float(settings.retrieval_link_min_confidence),),
+                    ).fetchall()
+                else:
+                    rows = connection.execute(
+                        """
+                        SELECT
+                            kc.text AS text,
+                            kce.embedding_json AS embedding_json,
+                            kgl.match_confidence AS match_confidence
+                        FROM keeper_game_guide_links kgl
+                        JOIN keeper_chunks kc
+                            ON kc.guide_url = kgl.guide_url
+                           AND kc.game_title = kgl.game_title
+                        JOIN keeper_chunk_embeddings kce
+                            ON kce.correlation_id = kc.correlation_id
+                           AND kce.chunk_index = kc.chunk_index
+                        WHERE kgl.match_confidence >= ?
+                        """,
+                        (float(settings.retrieval_link_min_confidence),),
+                    ).fetchall()
 
                 # When links exist but none meet confidence threshold, avoid degrading to low-confidence retrieval.
                 if not rows:
@@ -57,27 +87,28 @@ class KeeperRetriever:
 
             try:
                 if not rows:
-                    rows = connection.execute(
-                        """
-                        SELECT kc.text AS text, kce.embedding_json AS embedding_json, 0.0 AS match_confidence
-                        FROM keeper_chunk_embeddings kce
-                        JOIN keeper_chunks kc ON kc.correlation_id = kce.correlation_id AND kc.chunk_index = kce.chunk_index
-                        """
-                    ).fetchall()
+                    if trust_column_available:
+                        rows = connection.execute(
+                            """
+                            SELECT kc.text AS text, kce.embedding_json AS embedding_json, 0.0 AS match_confidence
+                            FROM keeper_chunk_embeddings kce
+                            JOIN keeper_chunks kc ON kc.correlation_id = kce.correlation_id AND kc.chunk_index = kce.chunk_index
+                            WHERE kc.trust_status = 'approved'
+                            """
+                        ).fetchall()
+                    else:
+                        rows = connection.execute(
+                            """
+                            SELECT kc.text AS text, kce.embedding_json AS embedding_json, 0.0 AS match_confidence
+                            FROM keeper_chunk_embeddings kce
+                            JOIN keeper_chunks kc ON kc.correlation_id = kce.correlation_id AND kc.chunk_index = kce.chunk_index
+                            """
+                        ).fetchall()
             except sqlite3.OperationalError:
                 rows = []
 
             if not rows:
-                try:
-                    rows = connection.execute(
-                    """
-                    SELECT gc.text AS text, gce.embedding_json AS embedding_json, 0.0 AS match_confidence
-                    FROM guide_chunk_embeddings gce
-                    JOIN guide_chunks gc ON gc.job_id = gce.job_id AND gc.chunk_index = gce.chunk_index
-                    """
-                    ).fetchall()
-                except sqlite3.OperationalError:
-                    return []
+                return []
 
         if not rows:
             return []

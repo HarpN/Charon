@@ -39,6 +39,11 @@ class Settings:
 
     llm_light_model: str = os.getenv("LLM_LIGHT_MODEL", "gpt-4o-mini")
     llm_deep_model: str = os.getenv("LLM_DEEP_MODEL", "gpt-4o")
+    local_llm_enabled: bool = os.getenv("LOCAL_LLM_ENABLED", "false").lower() == "true"
+    local_llm_model_path: str = os.getenv("LOCAL_LLM_MODEL_PATH", "")
+    local_llm_context_window: int = int(os.getenv("LOCAL_LLM_CONTEXT_WINDOW", "4096"))
+    local_llm_max_tokens: int = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "128"))
+    local_llm_temperature: float = float(os.getenv("LOCAL_LLM_TEMPERATURE", "0.2"))
     keeper_db_path: str = os.getenv("KEEPER_DB_PATH", "../TheKeeper/keeper_blended.db")
     retrieval_link_min_confidence: float = float(os.getenv("RETRIEVAL_LINK_MIN_CONFIDENCE", "0.55"))
     retrieval_top_k: int = int(os.getenv("RETRIEVAL_TOP_K", "3"))

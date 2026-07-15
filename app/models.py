@@ -37,3 +37,5 @@ class ProposalRationaleEnvelope(BaseModel):
     selected_model: str = Field(min_length=1, max_length=128)
     intent_summary: str = Field(min_length=1, max_length=400)
     retrieval_snippets: list[str] = Field(default_factory=list, max_length=3)
+    nlp_engine: str = Field(min_length=1, max_length=128)
+    nlp_fallback_used: bool = Field(default=False)

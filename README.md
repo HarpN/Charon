@@ -19,6 +19,8 @@ flowchart LR
 ## Features
 
 - Deterministic proposal builder for low-cost MVP operation
+- Local NLP intent-analysis stage before proposal generation (llama-cpp local model with deterministic fallback)
+- Keeper-first retrieval path with trust-aware filtering for approved chunks
 - Signature envelope (`X-Charon-Signature`) using HMAC-SHA256
 - Judge/commit modes through one gRPC method (`ProposeTask`)
 - Health and lightweight metrics methods
@@ -86,6 +88,17 @@ docker compose run --rm charon pytest
 | `OUTBOUND_SIGNATURE_SECRET` | Shared secret for outbound proposal signing | required |
 | `OUTBOUND_KEY_ID` | Signing key identifier for outbound envelope metadata | `charon-k1` |
 | `REPLAY_TTL_SECONDS` | Replay protection window for inbound signed requests | `300` |
+| `LOCAL_LLM_ENABLED` | Enable local LLM intent analysis path | `false` |
+| `LOCAL_LLM_MODEL_PATH` | Path to local llama.cpp GGUF model | empty |
+| `LOCAL_LLM_CONTEXT_WINDOW` | Local LLM context window size | `4096` |
+| `LOCAL_LLM_MAX_TOKENS` | Max generation tokens for local intent analysis | `128` |
+| `LOCAL_LLM_TEMPERATURE` | Sampling temperature for local intent analysis | `0.2` |
+
+## Retrieval Hardening Notes
+
+- Charon retrieval now prioritizes trusted Keeper data and excludes unapproved chunks when trust metadata is available.
+- This fail-closed behavior protects response generation from rejected scrape content.
+- Local NLP stage now includes explicit fallback metadata in rationale envelopes so downstream observability can detect fallback usage.
 
 ### Compose mTLS Profile
 
@@ -167,3 +180,15 @@ Charon/
 ├── requirements.txt
 └── README.md
 ```
+
+## Changelog
+
+### v0.2.0 - 2026-07-14
+
+Added:
+
+- Trust-aware Keeper retrieval guidance and fail-closed approved-chunk behavior notes.
+
+Changed:
+
+- Local NLP fallback observability behavior is now documented for deterministic operations.
